@@ -1,42 +1,46 @@
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { db } from '../firebase';
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+} from 'firebase/firestore';
 
-export default function ChatClinica() {
-  const [mensajes, setMensajes] = useState([
-    { de: 'Recepción', texto: 'Paciente María López llegó.' },
-    { de: 'Laboratorio', texto: 'Resultados de Juan Pérez listos.' },
-  ]);
+export default function ChatClinica({ usuario }) {
+  const [mensajes, setMensajes] = useState([]);
   const [entrada, setEntrada] = useState('');
-  const [imagenes, setImagenes] = useState([]);
   const archivoInputRef = useRef(null);
 
-  const enviarMensaje = () => {
-    if (entrada.trim() !== '') {
-      setMensajes([...mensajes, { de: 'Tú', texto: entrada }]);
-      setEntrada('');
-    }
-  };
+  useEffect(() => {
+    const q = query(collection(db, 'mensajes'), orderBy('creado', 'asc'));
+    const unsuscribe = onSnapshot(q, (snapshot) => {
+      setMensajes(snapshot.docs.map(doc => doc.data()));
+    });
+    return () => unsuscribe();
+  }, []);
 
-  const manejarCargaImagen = (e) => {
-    const archivos = Array.from(e.target.files);
-    const previews = archivos.map(archivo => URL.createObjectURL(archivo));
-    setImagenes(prev => [...prev, ...previews]);
+  const enviarMensaje = async () => {
+    if (entrada.trim() === '') return;
+    await addDoc(collection(db, 'mensajes'), {
+      de: usuario.nombre,
+      texto: entrada,
+      creado: serverTimestamp()
+    });
+    setEntrada('');
   };
 
   return (
     <div className="max-w-xl mx-auto p-4">
-      <div className="h-[600px] flex flex-col border rounded-xl shadow">
+      <div className="h-[600px] flex flex-col border rounded-xl shadow bg-white">
         <div className="flex-1 p-4 overflow-y-auto space-y-2">
           {mensajes.map((msg, index) => (
             <div key={index} className="bg-gray-100 rounded-xl p-2">
               <strong>{msg.de}: </strong>
               <span>{msg.texto}</span>
-            </div>
-          ))}
-          {imagenes.map((img, index) => (
-            <div key={`img-${index}`} className="bg-gray-50 p-2 rounded-xl">
-              <strong>Imagen enviada:</strong>
-              <img src={img} alt={`imagen-${index}`} className="mt-2 max-w-full rounded-xl border" />
             </div>
           ))}
         </div>
@@ -59,7 +63,6 @@ export default function ChatClinica() {
             accept="image/*"
             multiple
             ref={archivoInputRef}
-            onChange={manejarCargaImagen}
             className="hidden"
           />
         </div>
