@@ -1,31 +1,46 @@
 
 import { useState } from 'react';
+import { db } from '../firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 export default function Login({ onLogin }) {
-  const [email, setEmail] = useState('');
+  const [usuario, setUsuario] = useState('');
   const [clave, setClave] = useState('');
   const [error, setError] = useState('');
 
-  const manejarEnvio = (e) => {
+  const manejarEnvio = async (e) => {
     e.preventDefault();
-    if (email && clave) {
-      // Simulación de login
-      onLogin({ nombre: email.split('@')[0], rol: 'medico' });
-    } else {
-      setError('Por favor completa todos los campos.');
+    if (!usuario || !clave) {
+      setError('Completa todos los campos.');
+      return;
     }
+
+    const q = query(collection(db, 'usuarios'), where('usuario', '==', usuario));
+    const resultado = await getDocs(q);
+    if (resultado.empty) {
+      setError('Usuario no encontrado.');
+      return;
+    }
+
+    const data = resultado.docs[0].data();
+    if (data.clave !== clave) {
+      setError('Contraseña incorrecta.');
+      return;
+    }
+
+    onLogin({ nombre: data.nombre, rol: data.rol });
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <form onSubmit={manejarEnvio} className="bg-white p-6 rounded-xl shadow-md space-y-4 w-full max-w-sm">
-        <h2 className="text-xl font-bold">Iniciar Sesión</h2>
+        <h2 className="text-xl font-bold">Ingreso a Clínica Hall</h2>
         {error && <p className="text-red-500 text-sm">{error}</p>}
         <input
-          type="email"
-          placeholder="Correo electrónico"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="text"
+          placeholder="Usuario"
+          value={usuario}
+          onChange={(e) => setUsuario(e.target.value)}
           className="border p-2 w-full rounded"
         />
         <input

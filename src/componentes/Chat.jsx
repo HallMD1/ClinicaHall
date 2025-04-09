@@ -12,12 +12,14 @@ import {
 } from 'firebase/firestore';
 
 const canalesDisponibles = ['General', 'Recepción', 'Médicos', 'Urgencias'];
+const sonido = new Audio('/sonido.mp3');
 
 export default function ChatClinica({ usuario }) {
   const [mensajes, setMensajes] = useState([]);
   const [entrada, setEntrada] = useState('');
   const [canal, setCanal] = useState('General');
   const archivoInputRef = useRef(null);
+  const ultimoMensajeRef = useRef(null);
 
   useEffect(() => {
     const q = query(
@@ -26,10 +28,17 @@ export default function ChatClinica({ usuario }) {
       orderBy('creado', 'asc')
     );
     const unsuscribe = onSnapshot(q, (snapshot) => {
-      setMensajes(snapshot.docs.map(doc => doc.data()));
+      const nuevos = snapshot.docs.map(doc => doc.data());
+      const nuevoUltimo = nuevos[nuevos.length - 1];
+      const anteriorUltimo = ultimoMensajeRef.current;
+      setMensajes(nuevos);
+      if (anteriorUltimo && nuevoUltimo?.texto !== anteriorUltimo?.texto && nuevoUltimo?.de !== usuario.nombre) {
+        sonido.play();
+      }
+      ultimoMensajeRef.current = nuevoUltimo;
     });
     return () => unsuscribe();
-  }, [canal]);
+  }, [canal, usuario.nombre]);
 
   const enviarMensaje = async () => {
     if (entrada.trim() === '') return;
